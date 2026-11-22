@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spike capture</title>
+<style>
+  body { font: 14px system-ui, sans-serif; margin: 0; padding: 12px; background: #111; color: #eee; }
+  video { width: 100%; background: #000; }
+  button, input { font: inherit; padding: 8px 10px; margin: 4px 2px; }
+  pre { white-space: pre-wrap; background: #222; padding: 8px; font-size: 12px; }
+  #meter { height: 10px; background: #333; }
+  #meterBar { height: 100%; width: 0; background: #4a4; }
+  .stable #meterBar { background: #48f; }
+  #pages { display: flex; flex-wrap: wrap; gap: 6px; }
+  #pages figure { margin: 0; width: 30%; font-size: 11px; }
+  #pages img { width: 100%; }
+</style>
+</head>
+<body>
+<button id="start">Démarrer caméra</button>
+<button id="snap" disabled>Capturer</button>
+<label><input type="checkbox" id="auto"> Capture auto</label>
+<br>
+<label>Seuil mouvement <input id="tMove" type="number" value="12" step="1" style="width:4em"></label>
+<label>Seuil stable <input id="tStill" type="number" value="3" step="0.5" style="width:4em"></label>
+<label>Stable (ms) <input id="tMs" type="number" value="500" step="100" style="width:5em"></label>
+<div id="meter"><div id="meterBar"></div></div>
+<div id="motion">diff: –</div>
+<video id="video" playsinline muted></video>
+<pre id="info">Caméra non démarrée.</pre>
+
+<p>Photo native (comparaison) : <input type="file" id="photo" accept="image/*" capture="environment"></p>
+
+<p>
+  <button id="share" disabled>Partager les Pages</button>
+  <label>Stress N <input id="stressN" type="number" value="300" style="width:5em"></label>
+  <button id="stress" disabled>Partager N fichiers</button>
+</p>
+<pre id="log"></pre>
+<div id="pages"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const video = $('video');
+const pages = []; // { name, blob, w, h }
+let audioCtx;
+
+const log = (msg) => { $('log').textContent = msg + '\n' + $('log').textContent; };
+
+function beep() {
+  if (!audioCtx) return;
+  const o = audioCtx.createOscillator();
+  o.connect(audioCtx.destination);
+  o.frequency.value = 880;
+  o.start();
+  o.stop(audioCtx.currentTime + 0.08);
+}
+
+$('start').onclick = async () => {
+  // AudioContext must be created from a user gesture on iOS
+  audioCtx = new AudioContext();
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: false,
+    video: { facingMode: 'environment', width: { ideal: 4096 }, height: { ideal: 3072 } },
+  });
+  video.srcObject = stream;
+  await video.play();
+  const track = stream.getVideoTracks()[0];
+  const caps = track.getCapabilities ? track.getCapabilities() : 'getCapabilities absent';
+  $('info').textContent =
+    `videoWidth x videoHeight: ${video.videoWidth} x ${video.videoHeight}\n` +
+    `settings: ${JSON.stringify(track.getSettings(), null, 1)}\n` +
+    `capabilities: ${JSON.stringify(caps, null, 1)}`;
+  $('snap').disabled = false;
+  requestAnimationFrame(watchMotion);
+};
+
+// Motion detection on a tiny grayscale frame: cheap enough to run continuously
+const small = document.createElement('canvas');
+small.width = 64; small.height = 48;
+const sctx = small.getContext('2d', { willReadFrequently: true });
+let prev = null, lastTick = 0, armed = false, stillSince = 0;
+
+function watchMotion(t) {
+  requestAnimationFrame(watchMotion);
+  if (t - lastTick < 100) return;
+  lastTick = t;
+  sctx.drawImage(video, 0, 0, 64, 48);
+  const d = sctx.getImageData(0, 0, 64, 48).data;
+  const gray = new Float32Array(64 * 48);
+  for (let i = 0; i < gray.length; i++) gray[i] = (d[i * 4] + d[i * 4 + 1] + d[i * 4 + 2]) / 3;
+  if (!prev) { prev = gray; return; }
+  let sum = 0;
+  for (let i = 0; i < gray.length; i++) sum += Math.abs(gray[i] - prev[i]);
+  prev = gray;
+  const diff = sum / gray.length;
+
+  const tMove = +$('tMove').value, tStill = +$('tStill').value, tMs = +$('tMs').value;
+  const stable = diff < tStill;
+  $('meterBar').style.width = Math.min(100, diff * 4) + '%';
+  document.body.classList.toggle('stable', stable);
+  $('motion').textContent = `diff: ${diff.toFixed(1)} · ${armed ? 'armé' : 'verrouillé'}`;
+
+  // Capture only after real motion then a stable pause, then lock until next motion (no duplicates)
+  if (diff > tMove) { armed = true; stillSince = 0; return; }
+  if (!stable) { stillSince = 0; return; }
+  if (!stillSince) stillSince = t;
+  if ($('auto').checked && armed && t - stillSince >= tMs) {
+    armed = false;
+    capture();
+  }
+}
+
+$('snap').onclick = () => capture();
+
+function capture() {
+  const c = document.createElement('canvas');
+  c.width = video.videoWidth; c.height = video.videoHeight;
+  c.getContext('2d').drawImage(video, 0, 0);
+  splitAndStore(c, 'vidéo');
+  beep();
+}
+
+$('photo').onchange = () => {
+  const file = $('photo').files[0];
+  if (!file) return;
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    c.getContext('2d').drawImage(img, 0, 0);
+    log(`Photo native: ${img.naturalWidth} x ${img.naturalHeight}, ${(file.size / 1024).toFixed(0)} Ko`);
+    splitAndStore(c, 'photo');
+    URL.revokeObjectURL(img.src);
+  };
+  img.src = URL.createObjectURL(file);
+};
+
+// Naive split at the horizontal center: crease detection is out of spike scope
+async function splitAndStore(src, origin) {
+  const half = Math.floor(src.width / 2);
+  for (const x of [0, half]) {
+    const c = document.createElement('canvas');
+    c.width = half; c.height = src.height;
+    c.getContext('2d').drawImage(src, x, 0, half, src.height, 0, 0, half, src.height);
+    const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.9));
+    const name = `T00-R${String(pages.length + 1).padStart(4, '0')}.jpg`;
+    pages.push({ name, blob, w: half, h: src.height });
+    const fig = document.createElement('figure');
+    fig.innerHTML = `<img src="${URL.createObjectURL(blob)}"><figcaption>${name} · ${origin} · ${half}x${src.height} · ${(blob.size / 1024).toFixed(0)} Ko</figcaption>`;
+    $('pages').prepend(fig);
+  }
+  $('share').disabled = $('stress').disabled = false;
+  log(`Capture ${origin}: ${src.width} x ${src.height} -> 2 Pages`);
+}
+
+async function shareFiles(files) {
+  if (!navigator.canShare || !navigator.canShare({ files })) {
+    log(`canShare refuse ${files.length} fichiers`);
+    return;
+  }
+  const t0 = performance.now();
+  try {
+    await navigator.share({ files });
+    log(`Partage OK: ${files.length} fichiers en ${((performance.now() - t0) / 1000).toFixed(1)} s`);
+  } catch (e) {
+    log(`Partage échoué (${files.length} fichiers): ${e.name} ${e.message}`);
+  }
+}
+
+$('share').onclick = () =>
+  shareFiles(pages.map((p) => new File([p.blob], p.name, { type: 'image/jpeg' })));
+
+// Simulates a full Tome by cycling captured Pages under sequential Rang names
+$('stress').onclick = () => {
+  const n = +$('stressN').value;
+  const files = Array.from({ length: n }, (_, i) =>
+    new File([pages[i % pages.length].blob], `T00-R${String(i + 1).padStart(4, '0')}.jpg`, { type: 'image/jpeg' }));
+  shareFiles(files);
+};
+</script>
+</body>
+</html>
