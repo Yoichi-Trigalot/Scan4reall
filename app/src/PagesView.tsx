@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { listCaptures, listTextes, type TexteBrut, type Tome } from './db'
+import { chargerDictionnaire } from './dictionnaire'
 import ExportView from './ExportView'
 import ImportView from './ImportView'
+import { nettoyer, type Connu } from './nettoyage'
+import TexteView from './TexteView'
 import { pageName, pagesOf, renderRawPage, type Page } from './pages'
 
 // `nbCaptures` only serves to reload when Captures are added or removed
@@ -11,7 +14,26 @@ export default function PagesView({ tome, nbCaptures }: Props) {
   const [pages, setPages] = useState<Page[]>([])
   const [index, setIndex] = useState(0)
   const [textes, setTextes] = useState<Map<number, TexteBrut>>(new Map())
+  const [connu, setConnu] = useState<Connu>()
+  const [erreurDico, setErreurDico] = useState('')
   const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    chargerDictionnaire()
+      // Wrapped: a function passed to setState would be called as an updater
+      .then((dico) => setConnu(() => (mot: string) => dico.has(mot)))
+      .catch((err: Error) => setErreurDico(err.message))
+  }, [])
+
+  // Cleaning runs over the whole Tome: paragraphs and split words cross page breaks
+  const nettoyage = useMemo(() => {
+    if (!connu) return undefined
+    const valides = pages.flatMap((p) => {
+      const t = textes.get(p.rang)
+      return t && t.captureId === p.capture.id && t.cote === p.cote ? [{ rang: p.rang, texte: t.texte }] : []
+    })
+    return nettoyer(valides, connu)
+  }, [connu, pages, textes])
 
   const loadTextes = useCallback(async () => {
     setTextes(new Map((await listTextes(tome.id)).map((t) => [t.rang, t])))
@@ -93,7 +115,8 @@ export default function PagesView({ tome, nbCaptures }: Props) {
             réimporte ce lot.
           </p>
         )}
-        {texte && !decale && (texte.texte ? <pre>{texte.texte}</pre> : <p className="muted small">OCR vide.</p>)}
+        {texte && !decale && <TexteView rang={page.rang} texte={texte} nettoyage={nettoyage} connu={connu} />}
+        {erreurDico && <p className="error small">{erreurDico} : Mots suspects non calculés.</p>}
       </div>
       {textes.size > 0 && (
         <p className="muted small">

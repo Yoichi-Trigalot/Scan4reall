@@ -1,0 +1,7 @@
+fr-lexique410.txt is derived from Lexique 4.10 (http://www.lexique.org),
+by Boris New, Christophe Pallier et al., distributed under CC BY-SA 4.0
+(https://creativecommons.org/licenses/by-sa/4.0/).
+
+Changes: only the word form column (1_Mot) is kept, lowercased and
+deduplicated, one form per line. This derived list is shared under the
+same CC BY-SA 4.0 license.

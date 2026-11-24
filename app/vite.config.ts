@@ -9,6 +9,11 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      workbox: {
+        // The dictionary (~1.8 MB) must work offline, while travelling
+        globPatterns: ['**/*.{js,css,html,png,svg,txt}'],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+      },
       manifest: {
         name: 'Scan4reall',
         short_name: 'Scan4reall',
