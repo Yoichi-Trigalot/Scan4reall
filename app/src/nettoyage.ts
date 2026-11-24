@@ -27,7 +27,7 @@ const DEBUT_MOT = /^(\p{L}+)/u
  * hyphen stays: a real compound (peut-être) or an unknown word, which then shows as suspect.
  */
 export function recoller(gauche: string, droite: string, connu: Connu): boolean {
-  return connu((gauche + droite).toLowerCase())
+  return connu(formeDico(gauche + droite))
 }
 
 export function nettoyer(pages: PageOcr[], connu: Connu): Nettoyage {
@@ -96,16 +96,37 @@ export function typographie(texte: string): string {
 
 const ELISION = /^(l|d|j|m|n|s|t|c|qu|jusqu|lorsqu|puisqu|quoiqu)'(.+)$/
 
+/** Spelling used by the dictionary and the Lexique: lowercase, straight apostrophe, oe/ae. */
+export function formeDico(mot: string): string {
+  return mot.toLowerCase().replace(/’/g, "'").replace(/œ/g, 'oe').replace(/æ/g, 'ae')
+}
+
+/** The word a validation adds to the Lexique: without its elision, so l’Asie and d’Asie both benefit. */
+export function motPourLexique(token: string): string {
+  const m = formeDico(token.replace(/^[’'-]+|[’'-]+$/g, ''))
+  return ELISION.exec(m)?.[2] ?? m
+}
+
+// French print often drops accents on capitals (Etat, Eglise): try the accented first letter
+const ACCENTS: Record<string, string[]> = { e: ['é', 'è', 'ê'], a: ['à', 'â'], i: ['î'], o: ['ô'], u: ['ù', 'û'], c: ['ç'] }
+
+function connuSouple(m: string, majuscule: boolean, connu: Connu): boolean {
+  if (connu(m)) return true
+  return majuscule && (ACCENTS[m[0]] ?? []).some((a) => connu(a + m.slice(1)))
+}
+
 /** A word neither in the dictionary nor in the Lexique, or written in a non-Latin script. */
 export function estSuspect(token: string, connu: Connu): boolean {
   const mot = token.replace(/^[’'-]+|[’'-]+$/g, '')
   if (!/\p{L}/u.test(mot)) return false
   // Show-through read backwards comes out as Cyrillic or Arabic look-alikes
   if (/[^\p{Script=Latin}\p{N}’'-]/u.test(mot)) return true
-  const m = mot.toLowerCase().replace(/’/g, "'")
-  if (connu(m)) return false
+  const m = formeDico(mot)
+  if (connuSouple(m, /^\p{Lu}/u.test(mot), connu)) return false
   const elision = ELISION.exec(m)
-  if (elision && connu(elision[2])) return false
+  // After an elision the capital is the second word's first letter: d’Etat
+  const apres = elision && mot.slice(elision[1].length + 1)
+  if (elision && connuSouple(elision[2], /^\p{Lu}/u.test(apres ?? ''), connu)) return false
   const parties = (elision ? elision[2] : m).split('-')
   return !(parties.length > 1 && parties.every((p) => p && connu(p)))
 }

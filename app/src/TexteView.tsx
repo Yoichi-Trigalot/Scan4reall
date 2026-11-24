@@ -7,6 +7,7 @@ type Props = { rang: number; texte: TexteBrut; nettoyage?: Nettoyage; connu?: Co
 export default function TexteView({ rang, texte, nettoyage, connu }: Props) {
   const [brut, setBrut] = useState(false)
 
+  if (texte.ignoree) return <p className="muted small">Page ignorée : exclue du texte et de l’EPUB.</p>
   if (!texte.texte) return <p className="muted small">OCR vide.</p>
 
   // Paragraphs touching this Page, reduced to the part printed on it

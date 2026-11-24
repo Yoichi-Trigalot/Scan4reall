@@ -3,11 +3,13 @@ import { restoreSnapshot, type Snapshot } from './db'
 import Home from './Home'
 import SerieScreen from './SerieScreen'
 import SessionScreen from './SessionScreen'
+import VerificationScreen from './VerificationScreen'
 
 export type View =
   | { kind: 'home' }
   | { kind: 'serie'; serieId: string }
   | { kind: 'session'; tomeId: string }
+  | { kind: 'verification'; tomeId: string }
 
 /** Called after a deletion: shows the undo banner, `back` is where undo returns to. */
 export type OnDeleted = (message: string, snapshot: Snapshot, back: View) => void
@@ -43,6 +45,7 @@ function App() {
       {view.kind === 'home' && <Home navigate={setView} />}
       {view.kind === 'serie' && <SerieScreen serieId={view.serieId} navigate={setView} onDeleted={onDeleted} />}
       {view.kind === 'session' && <SessionScreen tomeId={view.tomeId} navigate={setView} onDeleted={onDeleted} />}
+      {view.kind === 'verification' && <VerificationScreen tomeId={view.tomeId} navigate={setView} />}
 
       {undo && (
         <div className="toast" role="status">

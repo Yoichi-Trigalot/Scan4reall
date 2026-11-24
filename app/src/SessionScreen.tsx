@@ -128,6 +128,10 @@ export default function SessionScreen({ tomeId, navigate, onDeleted }: Props) {
 
       <PagesView tome={tome} nbCaptures={nbCaptures} />
 
+      <button className="primary verifier" onClick={() => navigate({ kind: 'verification', tomeId })}>
+        Vérifier le texte
+      </button>
+
       <section>
         <h2>Modifier le tome</h2>
         <form onSubmit={onUpdate} className="row">

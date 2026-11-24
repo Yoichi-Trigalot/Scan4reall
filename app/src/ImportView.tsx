@@ -1,11 +1,11 @@
 import { useState, type ChangeEvent } from 'react'
-import { saveTextes, type Tome } from './db'
+import { saveTextes, type TexteBrut, type Tome } from './db'
 import { attach, parseOcr, type ImportReport } from './ocrImport'
 import type { Page } from './pages'
 
-type Props = { tome: Tome; pages: Page[]; onImported: () => void }
+type Props = { tome: Tome; pages: Page[]; textes: Map<number, TexteBrut>; onImported: () => void }
 
-export default function ImportView({ tome, pages, onImported }: Props) {
+export default function ImportView({ tome, pages, textes: existants, onImported }: Props) {
   const [report, setReport] = useState<ImportReport>()
   const [error, setError] = useState('')
 
@@ -22,6 +22,15 @@ export default function ImportView({ tome, pages, onImported }: Props) {
         return
       }
       const { textes, report } = attach(entries, tome, pages)
+      const corriges = textes.filter((t) => existants.get(t.rang)?.texteOcr !== undefined)
+      if (
+        corriges.length > 0 &&
+        !confirm(`${corriges.length} Page(s) corrigée(s) à la main seront remplacées par ce nouvel OCR. Continuer ?`)
+      ) {
+        return
+      }
+      // A re-import keeps the decision to ignore a Page
+      for (const t of textes) if (existants.get(t.rang)?.ignoree) t.ignoree = true
       await saveTextes(textes)
       setReport(report)
       onImported()

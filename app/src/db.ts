@@ -33,7 +33,17 @@ export type TexteBrut = {
   cote: 'gauche' | 'droite'
   texte: string
   importeLe: number
+  // Set once the text is edited by hand: the OCR's original, for undo and re-import warnings
+  texteOcr?: string
+  // Page ignorée: kept out of the cleaned text and the EPUB (blank, illustration, show-through)
+  ignoree?: boolean
 }
+
+/** Words validated by hand for a whole Serie (proper nouns, Japanese terms), lowercase. */
+export type Lexique = { serieId: string; mots: string[] }
+
+/** Word replacement applied to the cleaned text, on the whole Tome or on one Page. */
+export type Correction = { id: string; tomeId: string; de: string; vers: string; rang?: number }
 
 interface Scan4reallDB extends DBSchema {
   series: { key: string; value: Serie }
@@ -42,12 +52,14 @@ interface Scan4reallDB extends DBSchema {
   sessions: { key: string; value: Session }
   captures: { key: string; value: Capture; indexes: { tomeOrdre: [string, number] } }
   textes: { key: [string, number]; value: TexteBrut }
+  lexiques: { key: string; value: Lexique }
+  corrections: { key: string; value: Correction; indexes: { tomeId: string } }
 }
 
-const ALL_STORES = ['series', 'tomes', 'sessions', 'captures', 'textes'] as const
+const ALL_STORES = ['series', 'tomes', 'sessions', 'captures', 'textes', 'lexiques', 'corrections'] as const
 type WriteTx = IDBPTransaction<Scan4reallDB, (typeof ALL_STORES)[number][], 'readwrite'>
 
-const dbPromise = openDB<Scan4reallDB>('scan4reall', 3, {
+const dbPromise = openDB<Scan4reallDB>('scan4reall', 4, {
   upgrade(db, oldVersion) {
     if (oldVersion < 1) {
       db.createObjectStore('series', { keyPath: 'id' })
@@ -59,6 +71,10 @@ const dbPromise = openDB<Scan4reallDB>('scan4reall', 3, {
     }
     if (oldVersion < 3) {
       db.createObjectStore('textes', { keyPath: ['tomeId', 'rang'] })
+    }
+    if (oldVersion < 4) {
+      db.createObjectStore('lexiques', { keyPath: 'serieId' })
+      db.createObjectStore('corrections', { keyPath: 'id' }).createIndex('tomeId', 'tomeId')
     }
   },
 })
@@ -95,9 +111,19 @@ export type Snapshot = {
   sessions: Session[]
   captures: Capture[]
   textes: TexteBrut[]
+  lexiques: Lexique[]
+  corrections: Correction[]
 }
 
-const emptySnapshot = (): Snapshot => ({ series: [], tomes: [], sessions: [], captures: [], textes: [] })
+const emptySnapshot = (): Snapshot => ({
+  series: [],
+  tomes: [],
+  sessions: [],
+  captures: [],
+  textes: [],
+  lexiques: [],
+  corrections: [],
+})
 
 // Removes a Tome and everything hanging off it, recording it all in the snapshot
 async function removeTome(tx: WriteTx, tome: Tome, snapshot: Snapshot) {
@@ -108,6 +134,9 @@ async function removeTome(tx: WriteTx, tome: Tome, snapshot: Snapshot) {
   for (const c of captures) await tx.objectStore('captures').delete(c.id)
   snapshot.textes.push(...(await tx.objectStore('textes').getAll(textesOf(tome.id))))
   await tx.objectStore('textes').delete(textesOf(tome.id))
+  const corrections = await tx.objectStore('corrections').index('tomeId').getAll(tome.id)
+  snapshot.corrections.push(...corrections)
+  for (const c of corrections) await tx.objectStore('corrections').delete(c.id)
   await tx.objectStore('sessions').delete(tome.id)
   await tx.objectStore('tomes').delete(tome.id)
   snapshot.tomes.push(tome)
@@ -123,6 +152,9 @@ export async function deleteSerie(id: string): Promise<Snapshot> {
   for (const tome of await tx.objectStore('tomes').index('serieId').getAll(id)) {
     await removeTome(tx, tome, snapshot)
   }
+  const lexique = await tx.objectStore('lexiques').get(id)
+  if (lexique) snapshot.lexiques.push(lexique)
+  await tx.objectStore('lexiques').delete(id)
   await tx.objectStore('series').delete(id)
   await tx.done
   return snapshot
@@ -136,6 +168,8 @@ export async function restoreSnapshot(snapshot: Snapshot) {
   for (const s of snapshot.sessions) await tx.objectStore('sessions').put(s)
   for (const c of snapshot.captures) await tx.objectStore('captures').put(c)
   for (const t of snapshot.textes) await tx.objectStore('textes').put(t)
+  for (const l of snapshot.lexiques) await tx.objectStore('lexiques').put(l)
+  for (const c of snapshot.corrections) await tx.objectStore('corrections').put(c)
   await tx.done
 }
 
@@ -245,4 +279,45 @@ export async function saveTextes(textes: TexteBrut[]) {
   const tx = (await dbPromise).transaction('textes', 'readwrite')
   for (const t of textes) await tx.store.put(t)
   await tx.done
+}
+
+export async function getTexte(tomeId: string, rang: number) {
+  return (await dbPromise).get('textes', [tomeId, rang])
+}
+
+export async function putTexte(texte: TexteBrut) {
+  await (await dbPromise).put('textes', texte)
+}
+
+export async function getLexique(serieId: string): Promise<Lexique> {
+  return (await (await dbPromise).get('lexiques', serieId)) ?? { serieId, mots: [] }
+}
+
+/** Adds words (already in dictionary spelling, see motPourLexique) to the Serie's Lexique. */
+export async function ajouterAuLexique(serieId: string, mots: string[]) {
+  const db = await dbPromise
+  const tx = db.transaction('lexiques', 'readwrite')
+  const lexique = (await tx.store.get(serieId)) ?? { serieId, mots: [] }
+  lexique.mots = [...new Set([...lexique.mots, ...mots])].sort()
+  await tx.store.put(lexique)
+  await tx.done
+}
+
+export async function retirerDuLexique(serieId: string, mot: string) {
+  const db = await dbPromise
+  const lexique = await db.get('lexiques', serieId)
+  if (!lexique) return
+  await db.put('lexiques', { ...lexique, mots: lexique.mots.filter((m) => m !== mot) })
+}
+
+export async function listCorrections(tomeId: string): Promise<Correction[]> {
+  return (await dbPromise).getAllFromIndex('corrections', 'tomeId', tomeId)
+}
+
+export async function addCorrection(correction: Omit<Correction, 'id'>) {
+  await (await dbPromise).add('corrections', { ...correction, id: crypto.randomUUID() })
+}
+
+export async function deleteCorrection(id: string) {
+  await (await dbPromise).delete('corrections', id)
 }

@@ -363,6 +363,103 @@ button.link {
   color: #1f2a44;
 }
 
+.verifier {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.actions > button:not(.primary) {
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+textarea.edition {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 40vh;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: inherit;
+  font: 0.95rem/1.5 ui-serif, Georgia, serif;
+}
+
+.list li.suspect {
+  padding: 4px 4px 4px 14px;
+}
+
+.suspect-ligne {
+  align-items: center;
+}
+
+.list .suspect-ligne button {
+  width: auto;
+}
+
+.list .suspect-ligne .suspect-mot {
+  flex: 1;
+  padding: 0;
+}
+
+.suspect-ligne .link {
+  padding: 0 8px;
+}
+
+.suspect mark,
+.nettoye mark {
+  background: #f3d36b;
+  color: #1f2a44;
+  border-radius: 2px;
+}
+
+.occurrences {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0 8px 0 0;
+}
+
+.occurrences li {
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+}
+
+.occurrences p {
+  margin: 0;
+  font-family: ui-serif, Georgia, serif;
+}
+
+.occurrences .row button {
+  width: auto;
+}
+
+.mots {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+}
+
+.mots li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 36px;
+}
+
+.mots button {
+  min-height: 36px;
+  color: var(--muted);
+}
+
 .file-button {
   display: inline-flex;
   align-items: center;

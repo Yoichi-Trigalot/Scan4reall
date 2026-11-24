@@ -58,6 +58,14 @@ _Avoid_: Bavure, fantôme
 Mot absent du dictionnaire, signalé à la vérification mais jamais modifié automatiquement.
 _Avoid_: Erreur, faute, coquille
 
+**Correction**:
+Remplacement d'un mot par un autre, décidé à la main, sur tout un Tome ou sur une seule Page.
+_Avoid_: Règle, substitution, fix
+
+**Page à revoir**:
+Page signalée à la vérification : OCR vide, probablement illisible, anormalement courte, ou contenant encore des Mots suspects. Les autres Pages sont tenues pour bonnes.
+_Avoid_: Page en erreur, page à relire
+
 **Lexique**:
 Liste des mots validés à la main pour une Série (noms propres, termes japonais), qui ne sont plus jamais signalés comme Mots suspects.
 _Avoid_: Dictionnaire perso, whitelist

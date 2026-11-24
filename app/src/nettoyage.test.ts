@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { estSuspect, nettoyer, pageIllisible, typographie, type Connu } from './nettoyage'
+import { estSuspect, motPourLexique, nettoyer, pageIllisible, typographie, type Connu } from './nettoyage'
 
 // Cases come from the first real Tome's OCR output
 const DICO = new Set([
@@ -116,6 +116,28 @@ describe('mots suspects', () => {
 
   it('accepts a hyphenated word whose parts are all known', () => {
     expect(estSuspect('Est-ce', (m) => m === 'est' || m === 'ce')).toBe(false)
+  })
+})
+
+describe('graphies du dictionnaire', () => {
+  const dico: Connu = (m) => ['coeur', 'état', 'église', 'asie'].includes(m)
+
+  it('matches œ against the dictionary’s oe spelling', () => {
+    expect(estSuspect('cœur', dico)).toBe(false)
+  })
+
+  it('accepts a capital printed without its accent, also after an elision', () => {
+    expect(estSuspect('Eglise', dico)).toBe(false)
+    expect(estSuspect('d’Etat', dico)).toBe(false)
+  })
+
+  it('does not invent an accent on a lowercase word', () => {
+    expect(estSuspect('etat', dico)).toBe(true)
+  })
+
+  it('validates the word without its elision', () => {
+    expect(motPourLexique('d’Asie')).toBe('asie')
+    expect(motPourLexique('Nichiren')).toBe('nichiren')
   })
 })
 
