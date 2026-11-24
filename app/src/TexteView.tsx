@@ -12,8 +12,10 @@ export default function TexteView({ rang, texte, nettoyage, connu }: Props) {
 
   // Paragraphs touching this Page, reduced to the part printed on it
   const paragraphes = (nettoyage?.paragraphes ?? [])
-    .filter((p) => p.some((s) => s.rang === rang))
-    .map((p) => ({
+    .map((p, i) => ({ p, titre: nettoyage!.titres.has(i) }))
+    .filter(({ p }) => p.some((s) => s.rang === rang))
+    .map(({ p, titre }) => ({
+      titre,
       texte: p
         .filter((s) => s.rang === rang)
         .map((s) => s.texte)
@@ -46,13 +48,19 @@ export default function TexteView({ rang, texte, nettoyage, connu }: Props) {
         <pre>{texte.texte}</pre>
       ) : (
         <div className="nettoye">
-          {paragraphes.map((p, i) => (
+          {paragraphes.map((p, i) =>
+            p.titre ? (
+              <h3 key={i}>
+                <Surligne texte={p.texte} connu={connu} />
+              </h3>
+            ) : (
             <p key={i}>
               {p.suite && <span className="muted">… </span>}
               <Surligne texte={p.texte} connu={connu} />
               {p.continue && <span className="muted"> …</span>}
             </p>
-          ))}
+            ),
+          )}
         </div>
       )}
     </div>

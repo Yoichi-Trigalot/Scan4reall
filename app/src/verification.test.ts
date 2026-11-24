@@ -7,6 +7,7 @@ const DICO = new Set(['la', 'soka', 'est', 'une', 'association', 'de', 'foi', 'l
 const connu: Connu = (m) => DICO.has(m)
 const n = (...segments: [number, string][]): Nettoyage => ({
   folios: new Map(),
+  titres: new Set(),
   paragraphes: segments.map(([rang, texte]) => [{ rang, texte }]),
 })
 

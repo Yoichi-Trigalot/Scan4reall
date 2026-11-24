@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { putTexte, type TexteBrut, type Tome } from './db'
+import { putChapitres, putTexte, type TexteBrut, type Tome } from './db'
 import type { Connu, Nettoyage } from './nettoyage'
 import PageImage from './PageImage'
 import { pageName, type Page } from './pages'
@@ -27,6 +27,8 @@ type Props = {
 
 export default function PageDetail({ tome, page, texte, motifs, nettoyage, connu, onChange, onBack, onNext }: Props) {
   const [edition, setEdition] = useState<string>()
+  // Title of a chapter being added by hand at the start of this Page
+  const [nouveauChapitre, setNouveauChapitre] = useState<string>()
 
   async function enregistrer(t: TexteBrut) {
     await putTexte(t)
@@ -66,6 +68,30 @@ export default function PageDetail({ tome, page, texte, motifs, nettoyage, connu
         </div>
       )}
 
+      {nouveauChapitre !== undefined && (
+        <form
+          className="row chapitre-form"
+          onSubmit={async (e) => {
+            e.preventDefault()
+            if (!nouveauChapitre.trim()) return
+            await putChapitres([
+              { tomeId: tome.id, rang: page.rang, statut: 'confirme', titre: nouveauChapitre.trim(), niveau: 2 },
+            ])
+            setNouveauChapitre(undefined)
+            onChange()
+          }}
+        >
+          <input
+            autoFocus
+            value={nouveauChapitre}
+            onChange={(e) => setNouveauChapitre(e.target.value)}
+            placeholder="Titre du chapitre (commence à cette Page)"
+          />
+          <button type="submit" className="primary">Ajouter</button>
+          <button type="button" onClick={() => setNouveauChapitre(undefined)}>✕</button>
+        </form>
+      )}
+
       <div className="actions">
         {edition === undefined && !texte.ignoree && (
           <button onClick={() => setEdition(texte.texte)}>Modifier le texte brut</button>
@@ -78,6 +104,9 @@ export default function PageDetail({ tome, page, texte, motifs, nettoyage, connu
         <button onClick={() => enregistrer({ ...texte, ignoree: !texte.ignoree })}>
           {texte.ignoree ? 'Réintégrer la Page' : 'Ignorer cette Page'}
         </button>
+        {nouveauChapitre === undefined && !texte.ignoree && (
+          <button onClick={() => setNouveauChapitre('')}>Ajouter un chapitre ici</button>
+        )}
         {onNext && (
           <button className="primary" onClick={onNext}>
             Page à revoir suivante ›

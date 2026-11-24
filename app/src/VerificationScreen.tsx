@@ -11,6 +11,8 @@ import {
   type Tome,
 } from './db'
 import { motPourLexique } from './nettoyage'
+import { fusionner, suggererChapitres } from './chapitres'
+import ChapitresSection from './ChapitresSection'
 import PageDetail from './PageDetail'
 import { pageName } from './pages'
 import { texteValide, useTexteTome } from './useTexteTome'
@@ -39,10 +41,14 @@ export default function VerificationScreen({ tomeId, navigate }: Props) {
 const PAR_TRANCHE = 40
 
 function Verification({ tome, serie, navigate }: { tome: Tome; serie: Serie; navigate: (v: View) => void }) {
-  const { pages, textes, lexique, corrections, connu, nettoyage, recharger } = useTexteTome(tome)
+  const { pages, textes, lexique, corrections, chapitres, connu, nettoyage, recharger } = useTexteTome(tome)
   const [detail, setDetail] = useState<number>()
   const [visibles, setVisibles] = useState(PAR_TRANCHE)
 
+  const vuesChapitres = useMemo(
+    () => (nettoyage ? fusionner(suggererChapitres(nettoyage), chapitres) : []),
+    [nettoyage, chapitres],
+  )
   const suspects = useMemo(() => (nettoyage && connu ? listerSuspects(nettoyage, connu) : []), [nettoyage, connu])
   const aRevoir = useMemo(() => {
     if (!nettoyage || !connu) return []
@@ -111,6 +117,8 @@ function Verification({ tome, serie, navigate }: { tome: Tome; serie: Serie; nav
           </button>
         )}
       </section>
+
+      <ChapitresSection tome={tome} vues={vuesChapitres} onPage={setDetail} onChange={recharger} />
 
       <section>
         <h2>{aRevoir.length} Pages à revoir</h2>

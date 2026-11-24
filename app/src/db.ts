@@ -45,6 +45,21 @@ export type Lexique = { serieId: string; mots: string[] }
 /** Word replacement applied to the cleaned text, on the whole Tome or on one Page. */
 export type Correction = { id: string; tomeId: string; de: string; vers: string; rang?: number }
 
+/**
+ * A decision on a chapter: a suggested heading confirmed (possibly renamed) or rejected, or a
+ * chapter added by hand at the start of a Page. Suggestions without a decision stay pending.
+ */
+export type Chapitre = {
+  id: string
+  tomeId: string
+  // Suggestion it answers ("rang|heading text"), or undefined for a chapter added by hand
+  suggestion?: string
+  rang: number
+  statut: 'confirme' | 'rejete'
+  titre: string
+  niveau: 1 | 2
+}
+
 interface Scan4reallDB extends DBSchema {
   series: { key: string; value: Serie }
   tomes: { key: string; value: Tome; indexes: { serieId: string } }
@@ -54,12 +69,22 @@ interface Scan4reallDB extends DBSchema {
   textes: { key: [string, number]; value: TexteBrut }
   lexiques: { key: string; value: Lexique }
   corrections: { key: string; value: Correction; indexes: { tomeId: string } }
+  chapitres: { key: string; value: Chapitre; indexes: { tomeId: string } }
 }
 
-const ALL_STORES = ['series', 'tomes', 'sessions', 'captures', 'textes', 'lexiques', 'corrections'] as const
+const ALL_STORES = [
+  'series',
+  'tomes',
+  'sessions',
+  'captures',
+  'textes',
+  'lexiques',
+  'corrections',
+  'chapitres',
+] as const
 type WriteTx = IDBPTransaction<Scan4reallDB, (typeof ALL_STORES)[number][], 'readwrite'>
 
-const dbPromise = openDB<Scan4reallDB>('scan4reall', 4, {
+const dbPromise = openDB<Scan4reallDB>('scan4reall', 5, {
   upgrade(db, oldVersion) {
     if (oldVersion < 1) {
       db.createObjectStore('series', { keyPath: 'id' })
@@ -75,6 +100,9 @@ const dbPromise = openDB<Scan4reallDB>('scan4reall', 4, {
     if (oldVersion < 4) {
       db.createObjectStore('lexiques', { keyPath: 'serieId' })
       db.createObjectStore('corrections', { keyPath: 'id' }).createIndex('tomeId', 'tomeId')
+    }
+    if (oldVersion < 5) {
+      db.createObjectStore('chapitres', { keyPath: 'id' }).createIndex('tomeId', 'tomeId')
     }
   },
 })
@@ -113,6 +141,7 @@ export type Snapshot = {
   textes: TexteBrut[]
   lexiques: Lexique[]
   corrections: Correction[]
+  chapitres: Chapitre[]
 }
 
 const emptySnapshot = (): Snapshot => ({
@@ -123,6 +152,7 @@ const emptySnapshot = (): Snapshot => ({
   textes: [],
   lexiques: [],
   corrections: [],
+  chapitres: [],
 })
 
 // Removes a Tome and everything hanging off it, recording it all in the snapshot
@@ -137,6 +167,9 @@ async function removeTome(tx: WriteTx, tome: Tome, snapshot: Snapshot) {
   const corrections = await tx.objectStore('corrections').index('tomeId').getAll(tome.id)
   snapshot.corrections.push(...corrections)
   for (const c of corrections) await tx.objectStore('corrections').delete(c.id)
+  const chapitres = await tx.objectStore('chapitres').index('tomeId').getAll(tome.id)
+  snapshot.chapitres.push(...chapitres)
+  for (const c of chapitres) await tx.objectStore('chapitres').delete(c.id)
   await tx.objectStore('sessions').delete(tome.id)
   await tx.objectStore('tomes').delete(tome.id)
   snapshot.tomes.push(tome)
@@ -170,6 +203,7 @@ export async function restoreSnapshot(snapshot: Snapshot) {
   for (const t of snapshot.textes) await tx.objectStore('textes').put(t)
   for (const l of snapshot.lexiques) await tx.objectStore('lexiques').put(l)
   for (const c of snapshot.corrections) await tx.objectStore('corrections').put(c)
+  for (const c of snapshot.chapitres) await tx.objectStore('chapitres').put(c)
   await tx.done
 }
 
@@ -320,4 +354,18 @@ export async function addCorrection(correction: Omit<Correction, 'id'>) {
 
 export async function deleteCorrection(id: string) {
   await (await dbPromise).delete('corrections', id)
+}
+
+export async function listChapitres(tomeId: string): Promise<Chapitre[]> {
+  return (await dbPromise).getAllFromIndex('chapitres', 'tomeId', tomeId)
+}
+
+export async function putChapitres(chapitres: Omit<Chapitre, 'id'>[] | Chapitre[]) {
+  const tx = (await dbPromise).transaction('chapitres', 'readwrite')
+  for (const c of chapitres) await tx.store.put({ id: crypto.randomUUID(), ...c })
+  await tx.done
+}
+
+export async function deleteChapitre(id: string) {
+  await (await dbPromise).delete('chapitres', id)
 }

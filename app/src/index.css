@@ -460,6 +460,44 @@ textarea.edition {
   color: var(--muted);
 }
 
+.nettoye h3 {
+  margin: 12px 0 4px;
+  font: 600 1rem/1.4 ui-serif, Georgia, serif;
+  letter-spacing: 0.03em;
+}
+
+.list li.chapitre {
+  padding: 6px 4px 6px 14px;
+}
+
+.chapitre.rejete .chapitre-ligne > span:first-child {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.chapitre-ligne {
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.niveau-2 {
+  padding-left: 12px;
+}
+
+.chapitre-actions {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.list .chapitre button,
+.chapitre-form button {
+  width: auto;
+}
+
+.chapitre-form {
+  margin-top: 12px;
+}
+
 .file-button {
   display: inline-flex;
   align-items: center;

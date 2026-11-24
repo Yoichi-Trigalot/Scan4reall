@@ -14,6 +14,7 @@ export function appliquerCorrections(n: Nettoyage, corrections: Correction[]): N
   if (corrections.length === 0) return n
   return {
     folios: n.folios,
+    titres: n.titres,
     paragraphes: n.paragraphes.map((p) =>
       p.map((s) => ({
         rang: s.rang,

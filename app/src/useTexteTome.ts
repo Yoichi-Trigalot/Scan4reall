@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { getLexique, listCaptures, listCorrections, listTextes, type Correction, type TexteBrut, type Tome } from './db'
+import {
+  getLexique,
+  listCaptures,
+  listChapitres,
+  listCorrections,
+  listTextes,
+  type Chapitre,
+  type Correction,
+  type TexteBrut,
+  type Tome,
+} from './db'
 import { chargerDictionnaire } from './dictionnaire'
 import { nettoyer, type Connu } from './nettoyage'
 import { pagesOf, type Page } from './pages'
@@ -19,6 +29,7 @@ export function useTexteTome(tome: Tome, version = 0) {
   const [textes, setTextes] = useState<Map<number, TexteBrut>>(new Map())
   const [lexique, setLexique] = useState<Set<string>>(new Set())
   const [corrections, setCorrections] = useState<Correction[]>([])
+  const [chapitres, setChapitres] = useState<Chapitre[]>([])
   const [dico, setDico] = useState<Set<string>>()
   const [erreurDico, setErreurDico] = useState('')
 
@@ -27,6 +38,7 @@ export function useTexteTome(tome: Tome, version = 0) {
     setTextes(new Map((await listTextes(tome.id)).map((t) => [t.rang, t])))
     setLexique(new Set((await getLexique(tome.serieId)).mots))
     setCorrections(await listCorrections(tome.id))
+    setChapitres(await listChapitres(tome.id))
   }, [tome.id, tome.serieId])
 
   useEffect(() => {
@@ -54,5 +66,5 @@ export function useTexteTome(tome: Tome, version = 0) {
     return appliquerCorrections(nettoyer(actives, connu), corrections)
   }, [connu, pages, textes, corrections])
 
-  return { pages, textes, lexique, corrections, connu, nettoyage, erreurDico, recharger }
+  return { pages, textes, lexique, corrections, chapitres, connu, nettoyage, erreurDico, recharger }
 }

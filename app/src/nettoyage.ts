@@ -14,6 +14,25 @@ export type Nettoyage = {
   paragraphes: Segment[][]
   // Printed page number, kept out of the reading flow but not lost
   folios: Map<number, string>
+  // Indexes of paragraphs that look like a heading: chapter suggestions
+  titres: Set<number>
+}
+
+// Heading shapes of the first Serie: "LIVRE I", "1. L'AUBE", "PRÉFACE A L'ÉDITION ANGLAISE"
+const TITRE_MAX = 60
+const PARTIE = /^(livre|partie|chapitre)\s+([ivxlcdm]+|\d+|premier|première)\b/i
+const NUMERO = /^\d{1,3}\.\s/
+
+/** A line printed as a heading: short, no closing punctuation, numbered or in capitals. */
+export function estTitre(ligne: string): boolean {
+  if (ligne.length > TITRE_MAX || /[.!?…:;,]$/.test(ligne)) return false
+  // Show-through gibberish comes out in capitals too (ВИТАМИН): never a heading
+  if (/[^\p{Script=Latin}\p{N}\p{P}\p{S}\s]/u.test(ligne)) return false
+  if (PARTIE.test(ligne)) return true
+  const lettres = ligne.match(/\p{L}/gu) ?? []
+  if (lettres.length < 5) return false
+  const capitales = lettres.filter((l) => l !== l.toLowerCase()).length / lettres.length
+  return capitales >= 0.9 || (NUMERO.test(ligne) && capitales >= 0.8)
 }
 
 const FOLIO = /^\d{1,4}$/
@@ -44,8 +63,23 @@ export function nettoyer(pages: PageOcr[], connu: Connu): Nettoyage {
   }
 
   const paragraphes: Segment[][] = []
+  const titres = new Set<number>()
   let courant: Segment[] = []
   for (const ligne of lignes) {
+    // A heading never joins the text around it: "1. L'AUBE" has no final period
+    if (estTitre(ligne.texte)) {
+      if (courant.length > 0) paragraphes.push(courant)
+      courant = []
+      const precedent = paragraphes.length - 1
+      if (titres.has(precedent) && paragraphes[precedent].at(-1)!.rang === ligne.rang) {
+        // Heading printed on two lines: AVANT-PROPOS / DE ARNOLD TOYNBEE
+        paragraphes[precedent].at(-1)!.texte += ' ' + ligne.texte
+      } else {
+        titres.add(paragraphes.length)
+        paragraphes.push([{ rang: ligne.rang, texte: ligne.texte }])
+      }
+      continue
+    }
     let reste = ligne.texte
     const dernier = courant[courant.length - 1]
     if (!dernier) {
@@ -76,7 +110,7 @@ export function nettoyer(pages: PageOcr[], connu: Connu): Nettoyage {
   if (courant.length > 0) paragraphes.push(courant)
 
   for (const p of paragraphes) for (const s of p) s.texte = typographie(recollerEnLigne(s.texte, connu))
-  return { paragraphes, folios }
+  return { paragraphes, folios, titres }
 }
 
 // The OCR often merges a paragraph's lines itself, leaving the line-end hyphen inside the line

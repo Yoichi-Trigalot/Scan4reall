@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { estSuspect, motPourLexique, nettoyer, pageIllisible, typographie, type Connu } from './nettoyage'
+import { estSuspect, estTitre, motPourLexique, nettoyer, pageIllisible, typographie, type Connu } from './nettoyage'
 
 // Cases come from the first real Tome's OCR output
 const DICO = new Set([
@@ -148,5 +148,32 @@ describe('page illisible', () => {
 
   it('keeps a normal page with a few unknown names', () => {
     expect(pageIllisible('la foi de Nichiren et la conviction de Toda est une guerre', connu)).toBe(false)
+  })
+})
+
+describe('titres', () => {
+  it('recognizes the three heading shapes of the first Serie', () => {
+    expect(estTitre('LIVRE I')).toBe(true)
+    expect(estTitre('1. L’AUBE')).toBe(true)
+    expect(estTitre('PRÉFACE A L’ÉDITION ANGLAISE')).toBe(true)
+  })
+
+  it('rejects body text, short capitals and sentences', () => {
+    expect(estTitre('Le 3 juillet 1945, le jour même de la libération de')).toBe(false)
+    expect(estTitre('ISBN')).toBe(false)
+    expect(estTitre('VIVE LE JAPON !')).toBe(false)
+    expect(estTitre('ТЯНЕЛА ОТМ')).toBe(false)
+  })
+
+  it('keeps a numbered heading out of the paragraph that follows it', () => {
+    const r = nettoyer([{ rang: 40, texte: '1. L’AUBE\nRien n’est plus cruel que la\nguerre.' }], connu)
+    expect(r.paragraphes.map((p) => p[0].texte)).toEqual(['1. L’AUBE', 'Rien n’est plus cruel que la guerre.'])
+    expect([...r.titres]).toEqual([0])
+  })
+
+  it('joins a heading printed on two lines', () => {
+    const r = nettoyer([{ rang: 8, texte: 'AVANT-PROPOS\nDE ARNOLD TOYNBEE\n« La Révolution Humaine » est' }], connu)
+    expect(r.paragraphes[0][0].texte).toBe('AVANT-PROPOS DE ARNOLD TOYNBEE')
+    expect([...r.titres]).toEqual([0])
   })
 })
