@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import type { OnDeleted, View } from './App'
 import {
+  countCaptures,
   createTome,
   deleteSerie,
   getSerie,
@@ -64,7 +65,11 @@ export default function SerieScreen({ serieId, navigate, onDeleted }: Props) {
   async function onDelete() {
     if (!serie) return
     const n = tomes.length
-    const detail = n === 0 ? '' : ` et ses ${n} tome${n > 1 ? 's' : ''}`
+    let nbCaptures = 0
+    for (const t of tomes) nbCaptures += await countCaptures(t.id)
+    const detail =
+      (n === 0 ? '' : ` et ses ${n} tome${n > 1 ? 's' : ''}`) +
+      (nbCaptures === 0 ? '' : ` (${nbCaptures} Capture${nbCaptures > 1 ? 's' : ''})`)
     if (!confirm(`Supprimer la série « ${serie.titre} »${detail} ?`)) return
     const snapshot = await deleteSerie(serieId)
     onDeleted(`Série « ${serie.titre} » supprimée`, snapshot, { kind: 'serie', serieId })

@@ -133,6 +133,141 @@ button.back {
   gap: 8px;
 }
 
+.viewer {
+  position: relative;
+  margin-top: 16px;
+  aspect-ratio: 4 / 3;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #000;
+}
+
+.viewer video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+/* Split happens at the exact center: the book crease must sit on this line */
+.crease {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
+  background: rgba(255, 70, 70, 0.85);
+  pointer-events: none;
+}
+
+.viewer-start {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: fit-content;
+}
+
+.capture-controls {
+  margin-top: 12px;
+  align-items: center;
+}
+
+.capture-controls > button:last-child {
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toggle input {
+  flex: 0 0 auto;
+  min-height: 0;
+  width: 20px;
+  height: 20px;
+}
+
+.meter {
+  height: 6px;
+  margin-top: 12px;
+  border-radius: 3px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.meter > div {
+  height: 100%;
+  background: #c98a2b;
+  transform-origin: left;
+  transition: transform 0.1s linear;
+}
+
+.meter.still > div {
+  background: #3f8f5a;
+}
+
+.settings {
+  margin-top: 12px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.settings summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.settings label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.settings label input {
+  flex: 0 0 6em;
+  text-align: center;
+}
+
+.settings > button {
+  margin-bottom: 8px;
+  padding: 0;
+  color: var(--muted);
+}
+
+.last-capture {
+  margin: 0;
+}
+
+.last-capture img {
+  width: 100%;
+  border-radius: 10px;
+  display: block;
+}
+
+.last-capture figcaption {
+  justify-content: space-between;
+  align-items: center;
+}
+
+button.danger-inline {
+  padding: 0;
+  color: var(--error);
+}
+
+.small {
+  font-size: 0.85rem;
+}
+
 .toast {
   position: fixed;
   left: 16px;
