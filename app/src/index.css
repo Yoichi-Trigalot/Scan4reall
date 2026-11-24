@@ -1,0 +1,20 @@
+:root {
+  --bg: #f5f0e4;
+  --text: #1f2a44;
+  font: 16px/1.5 system-ui, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1f2a44;
+    --text: #f5f0e4;
+  }
+}
+
+body {
+  margin: 0;
+  padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+}
