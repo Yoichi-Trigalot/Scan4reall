@@ -13,6 +13,7 @@ import {
 import { motPourLexique } from './nettoyage'
 import { fusionner, suggererChapitres } from './chapitres'
 import ChapitresSection from './ChapitresSection'
+import EpubView from './EpubView'
 import PageDetail from './PageDetail'
 import { pageName } from './pages'
 import { texteValide, useTexteTome } from './useTexteTome'
@@ -138,6 +139,8 @@ function Verification({ tome, serie, navigate }: { tome: Tome; serie: Serie; nav
           ))}
         </ul>
       </section>
+
+      <EpubView serie={serie} tome={tome} nettoyage={nettoyage} chapitres={vuesChapitres} nbARevoir={aRevoir.length} />
 
       <details className="settings">
         <summary>Lexique de la série · {lexique.size} mots</summary>

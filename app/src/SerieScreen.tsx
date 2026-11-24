@@ -7,7 +7,7 @@ import {
   getSerie,
   listSessions,
   listTomes,
-  renameSerie,
+  updateSerie,
   type Serie,
   type Session,
   type Tome,
@@ -24,11 +24,13 @@ export default function SerieScreen({ serieId, navigate, onDeleted }: Props) {
   const [erreur, setErreur] = useState('')
 
   const [nouveauTitre, setNouveauTitre] = useState('')
+  const [auteur, setAuteur] = useState('')
 
   const load = useCallback(async () => {
     const s = await getSerie(serieId)
     setSerie(s)
     setNouveauTitre(s?.titre ?? '')
+    setAuteur(s?.auteur ?? '')
     const all = await listTomes(serieId)
     setTomes(all)
     setNumero(String((all.at(-1)?.numero ?? 0) + 1))
@@ -58,7 +60,7 @@ export default function SerieScreen({ serieId, navigate, onDeleted }: Props) {
 
   async function onRename(e: FormEvent) {
     e.preventDefault()
-    await renameSerie(serieId, nouveauTitre.trim())
+    await updateSerie(serieId, { titre: nouveauTitre.trim(), auteur: auteur.trim() || undefined })
     await load()
   }
 
@@ -121,10 +123,17 @@ export default function SerieScreen({ serieId, navigate, onDeleted }: Props) {
 
       <section>
         <h2>Modifier la série</h2>
-        <form onSubmit={onRename} className="row">
+        <form onSubmit={onRename} className="serie-form">
           <input value={nouveauTitre} onChange={(e) => setNouveauTitre(e.target.value)} aria-label="Titre de la série" />
-          <button type="submit" className="primary" disabled={!nouveauTitre.trim() || nouveauTitre.trim() === serie.titre}>
-            Renommer
+          <input value={auteur} onChange={(e) => setAuteur(e.target.value)} placeholder="Auteur (pour l’EPUB)" />
+          <button
+            type="submit"
+            className="primary"
+            disabled={
+              !nouveauTitre.trim() || (nouveauTitre.trim() === serie.titre && auteur.trim() === (serie.auteur ?? ''))
+            }
+          >
+            Enregistrer
           </button>
         </form>
         <button className="danger" onClick={onDelete}>Supprimer la série</button>

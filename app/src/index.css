@@ -498,6 +498,11 @@ textarea.edition {
   margin-top: 12px;
 }
 
+.serie-form {
+  display: grid;
+  gap: 8px;
+}
+
 .file-button {
   display: inline-flex;
   align-items: center;

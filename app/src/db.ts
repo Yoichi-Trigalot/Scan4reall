@@ -1,6 +1,12 @@
 import { openDB, type DBSchema, type IDBPTransaction } from 'idb'
 
-export type Serie = { id: string; titre: string; creeeLe: number }
+export type Serie = {
+  id: string
+  titre: string
+  creeeLe: number
+  // Shared by every Tome of the Serie: goes into the EPUB metadata
+  auteur?: string
+}
 
 export type Tome = { id: string; serieId: string; numero: number; titre: string }
 
@@ -126,10 +132,10 @@ export async function createSerie(titre: string): Promise<Serie> {
   return serie
 }
 
-export async function renameSerie(id: string, titre: string) {
+export async function updateSerie(id: string, patch: Pick<Serie, 'titre' | 'auteur'>) {
   const db = await dbPromise
   const serie = await db.get('series', id)
-  if (serie) await db.put('series', { ...serie, titre })
+  if (serie) await db.put('series', { ...serie, ...patch })
 }
 
 /** Everything a deletion removed, kept in memory so it can be undone. */
