@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import type { OnDeleted, View } from './App'
+import LexiqueSection from './LexiqueSection'
 import {
   countCaptures,
   createTome,
@@ -120,6 +121,8 @@ export default function SerieScreen({ serieId, navigate, onDeleted }: Props) {
         </form>
         {erreur && <p className="error">{erreur}</p>}
       </section>
+
+      <LexiqueSection serie={serie} />
 
       <section>
         <h2>Modifier la série</h2>
