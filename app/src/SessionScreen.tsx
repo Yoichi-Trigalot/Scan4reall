@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import type { OnDeleted, View } from './App'
 import CaptureView from './CaptureView'
+import PagesView from './PagesView'
 import {
   countCaptures,
   deleteCapture,
@@ -124,6 +125,8 @@ export default function SessionScreen({ tomeId, navigate, onDeleted }: Props) {
           </figure>
         )}
       </section>
+
+      <PagesView tome={tome} nbCaptures={nbCaptures} />
 
       <section>
         <h2>Modifier le tome</h2>

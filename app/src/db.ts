@@ -203,3 +203,8 @@ export async function addCapture(tomeId: string, blob: Blob, largeur: number, ha
 export async function deleteCapture(id: string) {
   await (await dbPromise).delete('captures', id)
 }
+
+/** Captures of a Tome in shooting order. Blobs stay on disk until read. */
+export async function listCaptures(tomeId: string): Promise<Capture[]> {
+  return (await dbPromise).getAllFromIndex('captures', 'tomeOrdre', capturesOf(tomeId))
+}
