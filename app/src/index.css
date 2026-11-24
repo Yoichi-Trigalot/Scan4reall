@@ -87,6 +87,17 @@ button.primary {
   font-weight: 600;
 }
 
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+button.danger {
+  margin-top: 16px;
+  padding: 0;
+  color: var(--error);
+}
+
 button.back {
   padding: 0;
   margin-top: 8px;

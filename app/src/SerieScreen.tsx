@@ -2,9 +2,11 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import type { View } from './App'
 import {
   createTome,
+  deleteSerie,
   getSerie,
   listSessions,
   listTomes,
+  renameSerie,
   type Serie,
   type Session,
   type Tome,
@@ -20,8 +22,12 @@ export default function SerieScreen({ serieId, navigate }: Props) {
   const [titre, setTitre] = useState('')
   const [erreur, setErreur] = useState('')
 
+  const [nouveauTitre, setNouveauTitre] = useState('')
+
   const load = useCallback(async () => {
-    setSerie(await getSerie(serieId))
+    const s = await getSerie(serieId)
+    setSerie(s)
+    setNouveauTitre(s?.titre ?? '')
     const all = await listTomes(serieId)
     setTomes(all)
     setNumero(String((all.at(-1)?.numero ?? 0) + 1))
@@ -47,6 +53,21 @@ export default function SerieScreen({ serieId, navigate }: Props) {
     } catch (err) {
       setErreur((err as Error).message)
     }
+  }
+
+  async function onRename(e: FormEvent) {
+    e.preventDefault()
+    await renameSerie(serieId, nouveauTitre.trim())
+    await load()
+  }
+
+  async function onDelete() {
+    if (!serie) return
+    const n = tomes.length
+    const detail = n === 0 ? '' : ` et ses ${n} tome${n > 1 ? 's' : ''}`
+    if (!confirm(`Supprimer la série « ${serie.titre} »${detail} ? C'est définitif.`)) return
+    await deleteSerie(serieId)
+    navigate({ kind: 'home' })
   }
 
   if (!serie) return null
@@ -90,6 +111,17 @@ export default function SerieScreen({ serieId, navigate }: Props) {
           <button type="submit" className="primary">Ajouter</button>
         </form>
         {erreur && <p className="error">{erreur}</p>}
+      </section>
+
+      <section>
+        <h2>Modifier la série</h2>
+        <form onSubmit={onRename} className="row">
+          <input value={nouveauTitre} onChange={(e) => setNouveauTitre(e.target.value)} aria-label="Titre de la série" />
+          <button type="submit" className="primary" disabled={!nouveauTitre.trim() || nouveauTitre.trim() === serie.titre}>
+            Renommer
+          </button>
+        </form>
+        <button className="danger" onClick={onDelete}>Supprimer la série</button>
       </section>
     </>
   )
