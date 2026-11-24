@@ -38,6 +38,20 @@ _Avoid_: Numéro de page
 Page marquée à la main comme exclue du texte (couverture, page blanche, carte, illustration).
 _Avoid_: Page supprimée
 
+## OCR
+
+**Marqueur**:
+Ligne `=== T01-R0042 ===` qui précède le texte de chaque Page dans le fichier renvoyé par l'OCR, et qui le rattache à sa Page par le Rang.
+_Avoid_: Séparateur, en-tête
+
+**Texte brut**:
+Texte d'une Page tel que l'OCR le renvoie, avant tout nettoyage.
+_Avoid_: Texte OCR, texte importé
+
+**Transparence**:
+Texte du verso visible à travers une page fine, que l'OCR peut lire comme du charabia.
+_Avoid_: Bavure, fantôme
+
 ## Fidélité
 
 **Mot suspect**:

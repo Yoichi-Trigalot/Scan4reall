@@ -314,6 +314,34 @@ button.danger-inline {
   font-weight: 600;
 }
 
+.ocr-text pre {
+  margin: 8px 0 0;
+  padding: 12px;
+  max-height: 40vh;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  font: 0.9rem/1.5 ui-serif, Georgia, serif;
+  white-space: pre-wrap;
+}
+
+.file-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.file-button input {
+  display: none;
+}
+
 .small {
   font-size: 0.85rem;
 }

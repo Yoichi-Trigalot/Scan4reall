@@ -39,7 +39,7 @@ export async function renderCleanPage(page: Page): Promise<HTMLCanvasElement> {
   return canvas
 }
 
-async function renderRawPage(page: Page): Promise<HTMLCanvasElement> {
+export async function renderRawPage(page: Page): Promise<HTMLCanvasElement> {
   const bitmap = await renderPage(page)
   const canvas = document.createElement('canvas')
   canvas.width = bitmap.width

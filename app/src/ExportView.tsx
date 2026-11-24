@@ -15,8 +15,9 @@ export default function ExportView({ tome, pages }: Props) {
   const [progress, setProgress] = useState('')
   const [shared, setShared] = useState<Set<number>>(new Set())
   const [error, setError] = useState('')
-  // Escape hatch if the show-through filter ever damages a batch; also yields raw Pages for tuning
-  const [nettoyer, setNettoyer] = useState(true)
+  // Off by default: on real Captures the filter made Apple's OCR silently drop lines, whereas
+  // raw show-through only yields visible gibberish that the cleaning rules flag (OCR bench)
+  const [nettoyer, setNettoyer] = useState(false)
 
   const lots = Array.from({ length: Math.ceil(pages.length / LOT_SIZE) }, (_, i) =>
     pages.slice(i * LOT_SIZE, (i + 1) * LOT_SIZE),

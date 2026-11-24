@@ -23,18 +23,31 @@ export type Capture = {
   priseLe: number
 }
 
+/** OCR text of one Page as returned by the shortcut, before any cleaning. */
+export type TexteBrut = {
+  tomeId: string
+  rang: number
+  // Capture and side the Rang pointed to at import: if Captures change afterwards, Rangs
+  // shift and the text must not be shown under another Page's image
+  captureId: string
+  cote: 'gauche' | 'droite'
+  texte: string
+  importeLe: number
+}
+
 interface Scan4reallDB extends DBSchema {
   series: { key: string; value: Serie }
   tomes: { key: string; value: Tome; indexes: { serieId: string } }
   // Keyed by tomeId: a Tome has at most one Session
   sessions: { key: string; value: Session }
   captures: { key: string; value: Capture; indexes: { tomeOrdre: [string, number] } }
+  textes: { key: [string, number]; value: TexteBrut }
 }
 
-const ALL_STORES = ['series', 'tomes', 'sessions', 'captures'] as const
+const ALL_STORES = ['series', 'tomes', 'sessions', 'captures', 'textes'] as const
 type WriteTx = IDBPTransaction<Scan4reallDB, (typeof ALL_STORES)[number][], 'readwrite'>
 
-const dbPromise = openDB<Scan4reallDB>('scan4reall', 2, {
+const dbPromise = openDB<Scan4reallDB>('scan4reall', 3, {
   upgrade(db, oldVersion) {
     if (oldVersion < 1) {
       db.createObjectStore('series', { keyPath: 'id' })
@@ -44,10 +57,15 @@ const dbPromise = openDB<Scan4reallDB>('scan4reall', 2, {
     if (oldVersion < 2) {
       db.createObjectStore('captures', { keyPath: 'id' }).createIndex('tomeOrdre', ['tomeId', 'ordre'])
     }
+    if (oldVersion < 3) {
+      db.createObjectStore('textes', { keyPath: ['tomeId', 'rang'] })
+    }
   },
 })
 
+// Both captures (tomeId, ordre) and textes (tomeId, rang) are keyed by Tome then a number
 const capturesOf = (tomeId: string) => IDBKeyRange.bound([tomeId, -Infinity], [tomeId, Infinity])
+const textesOf = capturesOf
 
 export async function listSeries(): Promise<Serie[]> {
   const series = await (await dbPromise).getAll('series')
@@ -71,9 +89,15 @@ export async function renameSerie(id: string, titre: string) {
 }
 
 /** Everything a deletion removed, kept in memory so it can be undone. */
-export type Snapshot = { series: Serie[]; tomes: Tome[]; sessions: Session[]; captures: Capture[] }
+export type Snapshot = {
+  series: Serie[]
+  tomes: Tome[]
+  sessions: Session[]
+  captures: Capture[]
+  textes: TexteBrut[]
+}
 
-const emptySnapshot = (): Snapshot => ({ series: [], tomes: [], sessions: [], captures: [] })
+const emptySnapshot = (): Snapshot => ({ series: [], tomes: [], sessions: [], captures: [], textes: [] })
 
 // Removes a Tome and everything hanging off it, recording it all in the snapshot
 async function removeTome(tx: WriteTx, tome: Tome, snapshot: Snapshot) {
@@ -82,6 +106,8 @@ async function removeTome(tx: WriteTx, tome: Tome, snapshot: Snapshot) {
   const captures = await tx.objectStore('captures').index('tomeOrdre').getAll(capturesOf(tome.id))
   snapshot.captures.push(...captures)
   for (const c of captures) await tx.objectStore('captures').delete(c.id)
+  snapshot.textes.push(...(await tx.objectStore('textes').getAll(textesOf(tome.id))))
+  await tx.objectStore('textes').delete(textesOf(tome.id))
   await tx.objectStore('sessions').delete(tome.id)
   await tx.objectStore('tomes').delete(tome.id)
   snapshot.tomes.push(tome)
@@ -109,6 +135,7 @@ export async function restoreSnapshot(snapshot: Snapshot) {
   for (const t of snapshot.tomes) await tx.objectStore('tomes').put(t)
   for (const s of snapshot.sessions) await tx.objectStore('sessions').put(s)
   for (const c of snapshot.captures) await tx.objectStore('captures').put(c)
+  for (const t of snapshot.textes) await tx.objectStore('textes').put(t)
   await tx.done
 }
 
@@ -207,4 +234,15 @@ export async function deleteCapture(id: string) {
 /** Captures of a Tome in shooting order. Blobs stay on disk until read. */
 export async function listCaptures(tomeId: string): Promise<Capture[]> {
   return (await dbPromise).getAllFromIndex('captures', 'tomeOrdre', capturesOf(tomeId))
+}
+
+export async function listTextes(tomeId: string): Promise<TexteBrut[]> {
+  return (await dbPromise).getAll('textes', textesOf(tomeId))
+}
+
+/** Saves imported OCR texts; a later import of the same Rang replaces it. */
+export async function saveTextes(textes: TexteBrut[]) {
+  const tx = (await dbPromise).transaction('textes', 'readwrite')
+  for (const t of textes) await tx.store.put(t)
+  await tx.done
 }
