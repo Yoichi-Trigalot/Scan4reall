@@ -24,3 +24,18 @@ export function renderPage(page: Page): Promise<ImageBitmap> {
   const x = page.cote === 'gauche' ? 0 : largeur - half
   return createImageBitmap(blob, x, 0, half, hauteur)
 }
+
+const EXPORT_JPEG_QUALITY = 0.9
+
+/** Encodes a Page as the JPEG file the OCR shortcut receives. */
+export async function pageFile(page: Page, tomeNumero: number): Promise<File> {
+  const bitmap = await renderPage(page)
+  const canvas = document.createElement('canvas')
+  canvas.width = bitmap.width
+  canvas.height = bitmap.height
+  canvas.getContext('2d')!.drawImage(bitmap, 0, 0)
+  bitmap.close()
+  const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/jpeg', EXPORT_JPEG_QUALITY))
+  if (!blob) throw new Error('Encodage JPEG impossible')
+  return new File([blob], `${pageName(tomeNumero, page.rang)}.jpg`, { type: 'image/jpeg' })
+}

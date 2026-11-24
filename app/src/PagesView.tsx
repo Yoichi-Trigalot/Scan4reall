@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { listCaptures, type Tome } from './db'
+import ExportView from './ExportView'
 import { pageName, pagesOf, renderPage, type Page } from './pages'
 
 // `nbCaptures` only serves to reload when Captures are added or removed
@@ -66,6 +67,9 @@ export default function PagesView({ tome, nbCaptures }: Props) {
           ›
         </button>
       </div>
+
+      {/* Keyed on the count: adding or removing a Capture discards a stale prepared batch */}
+      <ExportView key={pages.length} tome={tome} pages={pages} />
     </section>
   )
 }

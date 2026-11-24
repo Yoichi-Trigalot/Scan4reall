@@ -291,6 +291,24 @@ button.danger-inline {
   line-height: 1;
 }
 
+.list li.lot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 0 4px 0 14px;
+}
+
+.list li.lot button {
+  width: auto;
+  padding: 0 14px;
+}
+
+.list li.lot button:not(.primary) {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .small {
   font-size: 0.85rem;
 }
