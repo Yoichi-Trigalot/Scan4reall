@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { listCaptures, type Tome } from './db'
 import ExportView from './ExportView'
-import { pageName, pagesOf, renderPage, type Page } from './pages'
+import { pageName, pagesOf, renderCleanPage, type Page } from './pages'
 
 // `nbCaptures` only serves to reload when Captures are added or removed
 type Props = { tome: Tome; nbCaptures: number }
@@ -25,13 +25,13 @@ export default function PagesView({ tome, nbCaptures }: Props) {
   useEffect(() => {
     if (!page) return
     let cancelled = false
-    renderPage(page).then((bitmap) => {
+    // Shows what the OCR will receive, show-through already removed
+    renderCleanPage(page).then((source) => {
       const canvas = canvasRef.current
-      if (cancelled || !canvas) return bitmap.close()
-      canvas.width = bitmap.width
-      canvas.height = bitmap.height
-      canvas.getContext('2d')!.drawImage(bitmap, 0, 0)
-      bitmap.close()
+      if (cancelled || !canvas) return
+      canvas.width = source.width
+      canvas.height = source.height
+      canvas.getContext('2d')!.drawImage(source, 0, 0)
     })
     return () => {
       cancelled = true

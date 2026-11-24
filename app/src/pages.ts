@@ -1,3 +1,4 @@
+import { cleanForOcr } from './cleanForOcr'
 import type { Capture } from './db'
 
 /** One page of the book: one half of a Capture. Derived, never stored. */
@@ -25,16 +26,24 @@ export function renderPage(page: Page): Promise<ImageBitmap> {
   return createImageBitmap(blob, x, 0, half, hauteur)
 }
 
-const EXPORT_JPEG_QUALITY = 0.9
-
-/** Encodes a Page as the JPEG file the OCR shortcut receives. */
-export async function pageFile(page: Page, tomeNumero: number): Promise<File> {
+/** The Page as the OCR receives it: cropped, then cleaned of show-through. */
+export async function renderCleanPage(page: Page): Promise<HTMLCanvasElement> {
   const bitmap = await renderPage(page)
   const canvas = document.createElement('canvas')
   canvas.width = bitmap.width
   canvas.height = bitmap.height
-  canvas.getContext('2d')!.drawImage(bitmap, 0, 0)
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!
+  ctx.drawImage(bitmap, 0, 0)
   bitmap.close()
+  ctx.putImageData(cleanForOcr(ctx.getImageData(0, 0, canvas.width, canvas.height)), 0, 0)
+  return canvas
+}
+
+const EXPORT_JPEG_QUALITY = 0.9
+
+/** Encodes a Page as the JPEG file the OCR shortcut receives. */
+export async function pageFile(page: Page, tomeNumero: number): Promise<File> {
+  const canvas = await renderCleanPage(page)
   const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/jpeg', EXPORT_JPEG_QUALITY))
   if (!blob) throw new Error('Encodage JPEG impossible')
   return new File([blob], `${pageName(tomeNumero, page.rang)}.jpg`, { type: 'image/jpeg' })
