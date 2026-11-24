@@ -6,7 +6,10 @@
 <title>Spike capture</title>
 <style>
   body { font: 14px system-ui, sans-serif; margin: 0; padding: 12px; background: #111; color: #eee; }
-  video { width: 100%; background: #000; }
+  #viewer { position: relative; }
+  video { width: 100%; background: #000; display: block; }
+  /* Split is at the exact center: the crease must sit on this line */
+  #crease { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; margin-left: -1px; background: rgba(255, 60, 60, 0.8); pointer-events: none; }
   button, input { font: inherit; padding: 8px 10px; margin: 4px 2px; }
   pre { white-space: pre-wrap; background: #222; padding: 8px; font-size: 12px; }
   #meter { height: 10px; background: #333; }
@@ -27,7 +30,7 @@
 <label>Stable (ms) <input id="tMs" type="number" value="500" step="100" style="width:5em"></label>
 <div id="meter"><div id="meterBar"></div></div>
 <div id="motion">diff: –</div>
-<video id="video" playsinline muted></video>
+<div id="viewer"><video id="video" playsinline muted></video><div id="crease"></div></div>
 <pre id="info">Caméra non démarrée.</pre>
 
 <p>Photo native (comparaison) : <input type="file" id="photo" accept="image/*" capture="environment"></p>
