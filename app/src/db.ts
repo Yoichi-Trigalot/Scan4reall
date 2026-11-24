@@ -47,16 +47,34 @@ export async function renameSerie(id: string, titre: string) {
   if (serie) await db.put('series', { ...serie, titre })
 }
 
+/** Everything a deletion removed, kept in memory so it can be undone. */
+export type Snapshot = { series: Serie[]; tomes: Tome[]; sessions: Session[] }
+
 /** Deletes the Serie with all its Tomes and their Sessions. */
-export async function deleteSerie(id: string) {
+export async function deleteSerie(id: string): Promise<Snapshot> {
   const db = await dbPromise
   const tx = db.transaction(['series', 'tomes', 'sessions'], 'readwrite')
-  const tomes = await tx.objectStore('tomes').index('serieId').getAll(id)
-  for (const tome of tomes) {
+  const snapshot: Snapshot = { series: [], tomes: [], sessions: [] }
+  const serie = await tx.objectStore('series').get(id)
+  if (serie) snapshot.series.push(serie)
+  snapshot.tomes = await tx.objectStore('tomes').index('serieId').getAll(id)
+  for (const tome of snapshot.tomes) {
+    const session = await tx.objectStore('sessions').get(tome.id)
+    if (session) snapshot.sessions.push(session)
     await tx.objectStore('sessions').delete(tome.id)
     await tx.objectStore('tomes').delete(tome.id)
   }
   await tx.objectStore('series').delete(id)
+  await tx.done
+  return snapshot
+}
+
+export async function restoreSnapshot(snapshot: Snapshot) {
+  const db = await dbPromise
+  const tx = db.transaction(['series', 'tomes', 'sessions'], 'readwrite')
+  for (const s of snapshot.series) await tx.objectStore('series').put(s)
+  for (const t of snapshot.tomes) await tx.objectStore('tomes').put(t)
+  for (const s of snapshot.sessions) await tx.objectStore('sessions').put(s)
   await tx.done
 }
 
@@ -93,12 +111,15 @@ export async function updateTome(id: string, numero: number, titre: string) {
 }
 
 /** Deletes the Tome with its Session. */
-export async function deleteTome(id: string) {
+export async function deleteTome(id: string): Promise<Snapshot> {
   const db = await dbPromise
   const tx = db.transaction(['tomes', 'sessions'], 'readwrite')
+  const tome = await tx.objectStore('tomes').get(id)
+  const session = await tx.objectStore('sessions').get(id)
   await tx.objectStore('sessions').delete(id)
   await tx.objectStore('tomes').delete(id)
   await tx.done
+  return { series: [], tomes: tome ? [tome] : [], sessions: session ? [session] : [] }
 }
 
 export async function getSession(tomeId: string) {

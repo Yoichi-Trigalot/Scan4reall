@@ -1,10 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import type { View } from './App'
+import type { OnDeleted, View } from './App'
 import { deleteTome, getSerie, getTome, openSession, updateTome, type Serie, type Session, type Tome } from './db'
 
-type Props = { tomeId: string; navigate: (v: View) => void }
+type Props = { tomeId: string; navigate: (v: View) => void; onDeleted: OnDeleted }
 
-export default function SessionScreen({ tomeId, navigate }: Props) {
+export default function SessionScreen({ tomeId, navigate, onDeleted }: Props) {
   const [tome, setTome] = useState<Tome>()
   const [serie, setSerie] = useState<Serie>()
   const [session, setSession] = useState<Session>()
@@ -45,8 +45,9 @@ export default function SessionScreen({ tomeId, navigate }: Props) {
 
   async function onDelete() {
     if (!tome || !serie) return
-    if (!confirm(`Supprimer le tome ${tome.numero} et sa Session ? C'est définitif.`)) return
-    await deleteTome(tomeId)
+    if (!confirm(`Supprimer le tome ${tome.numero} et sa Session ?`)) return
+    const snapshot = await deleteTome(tomeId)
+    onDeleted(`Tome ${tome.numero} supprimé`, snapshot, { kind: 'session', tomeId })
     navigate({ kind: 'serie', serieId: serie.id })
   }
 

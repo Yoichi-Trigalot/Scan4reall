@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import type { View } from './App'
+import type { OnDeleted, View } from './App'
 import {
   createTome,
   deleteSerie,
@@ -12,9 +12,9 @@ import {
   type Tome,
 } from './db'
 
-type Props = { serieId: string; navigate: (v: View) => void }
+type Props = { serieId: string; navigate: (v: View) => void; onDeleted: OnDeleted }
 
-export default function SerieScreen({ serieId, navigate }: Props) {
+export default function SerieScreen({ serieId, navigate, onDeleted }: Props) {
   const [serie, setSerie] = useState<Serie>()
   const [tomes, setTomes] = useState<Tome[]>([])
   const [sessions, setSessions] = useState<Map<string, Session>>(new Map())
@@ -65,8 +65,9 @@ export default function SerieScreen({ serieId, navigate }: Props) {
     if (!serie) return
     const n = tomes.length
     const detail = n === 0 ? '' : ` et ses ${n} tome${n > 1 ? 's' : ''}`
-    if (!confirm(`Supprimer la série « ${serie.titre} »${detail} ? C'est définitif.`)) return
-    await deleteSerie(serieId)
+    if (!confirm(`Supprimer la série « ${serie.titre} »${detail} ?`)) return
+    const snapshot = await deleteSerie(serieId)
+    onDeleted(`Série « ${serie.titre} » supprimée`, snapshot, { kind: 'serie', serieId })
     navigate({ kind: 'home' })
   }
 
