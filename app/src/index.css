@@ -291,6 +291,11 @@ button.danger-inline {
   line-height: 1;
 }
 
+.export-option {
+  margin-bottom: 8px;
+  min-height: 44px;
+}
+
 .list li.lot {
   display: flex;
   justify-content: space-between;

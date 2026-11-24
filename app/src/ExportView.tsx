@@ -15,6 +15,8 @@ export default function ExportView({ tome, pages }: Props) {
   const [progress, setProgress] = useState('')
   const [shared, setShared] = useState<Set<number>>(new Set())
   const [error, setError] = useState('')
+  // Escape hatch if the show-through filter ever damages a batch; also yields raw Pages for tuning
+  const [nettoyer, setNettoyer] = useState(true)
 
   const lots = Array.from({ length: Math.ceil(pages.length / LOT_SIZE) }, (_, i) =>
     pages.slice(i * LOT_SIZE, (i + 1) * LOT_SIZE),
@@ -27,7 +29,7 @@ export default function ExportView({ tome, pages }: Props) {
     try {
       for (const [i, page] of lots[lot].entries()) {
         setProgress(`Préparation ${i + 1} / ${lots[lot].length}`)
-        files.push(await pageFile(page, tome.numero))
+        files.push(await pageFile(page, tome.numero, nettoyer))
       }
       setPrepared({ lot, files })
     } catch (err) {
@@ -59,6 +61,17 @@ export default function ExportView({ tome, pages }: Props) {
   return (
     <div className="export">
       <h2>Envoyer au raccourci OCR</h2>
+      <label className="toggle export-option">
+        <input
+          type="checkbox"
+          checked={nettoyer}
+          onChange={(e) => {
+            setNettoyer(e.target.checked)
+            setPrepared(undefined)
+          }}
+        />
+        Nettoyer la transparence
+      </label>
       <ul className="list">
         {lots.map((lot, i) => {
           const first = pageName(tome.numero, lot[0].rang)
