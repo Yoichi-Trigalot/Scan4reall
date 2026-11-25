@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Correction } from './db'
 import type { Connu, Nettoyage } from './nettoyage'
-import { appliquerCorrections, listerSuspects, pagesARevoir, remplacerMot } from './verification'
+import { appliquerCorrections, listerSuspects, nomPropreProbable, pagesARevoir, remplacerMot } from './verification'
 
 const DICO = new Set(['la', 'soka', 'est', 'une', 'association', 'de', 'foi', 'le', 'japon', 'et', 'des', 'gens'])
 const connu: Connu = (m) => DICO.has(m)
@@ -40,7 +40,15 @@ describe('listerSuspects', () => {
       ['Ikeda', 3],
       ['Toda', 1],
     ])
-    expect(r[1].occurrences[0]).toEqual({ rang: 2, contexte: 'la foi de Ikeda et de Toda' })
+    expect(r[0].formes).toEqual(['Ikeda', 'IKEDA'])
+    expect(r[1].occurrences[0]).toEqual({ rang: 2, forme: 'Toda', contexte: 'la foi de Ikeda et de Toda' })
+  })
+})
+
+describe('nomPropreProbable', () => {
+  it('keeps capitalised words seen at least 3 times', () => {
+    const r = listerSuspects(n([1, 'Ikeda Ikeda Ikeda Toda Toda'], [2, 'IKEDB IKEDB IKEDB xyzw xyzw xyzw']), connu)
+    expect(r.filter(nomPropreProbable).map((m) => m.forme)).toEqual(['Ikeda'])
   })
 })
 

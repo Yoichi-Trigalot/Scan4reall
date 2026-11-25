@@ -26,10 +26,11 @@ export function appliquerCorrections(n: Nettoyage, corrections: Correction[]): N
   }
 }
 
-export type Occurrence = { rang: number; contexte: string }
+// `forme`: the spelling at this place, which a Correction must match exactly
+export type Occurrence = { rang: number; forme: string; contexte: string }
 
 /** One suspect word of the Tome, case-insensitive, with every place it appears. */
-export type MotSuspect = { cle: string; forme: string; occurrences: Occurrence[] }
+export type MotSuspect = { cle: string; forme: string; formes: string[]; occurrences: Occurrence[] }
 
 const CONTEXTE = 40
 
@@ -48,6 +49,7 @@ export function listerSuspects(n: Nettoyage, connu: Connu): MotSuspect[] {
         const fin = Math.min(s.texte.length, m.index + m[0].length + CONTEXTE)
         entree.occurrences.push({
           rang: s.rang,
+          forme: m[0],
           contexte: (debut > 0 ? '…' : '') + s.texte.slice(debut, fin) + (fin < s.texte.length ? '…' : ''),
         })
         parCle.set(cle, entree)
@@ -59,9 +61,18 @@ export function listerSuspects(n: Nettoyage, connu: Connu): MotSuspect[] {
       cle,
       // Shown as its most frequent spelling (Ikeda rather than IKEDA)
       forme: [...e.formes].sort((a, b) => b[1] - a[1])[0][0],
+      formes: [...e.formes.keys()],
       occurrences: e.occurrences,
     }))
     .sort((a, b) => b.occurrences.length - a.occurrences.length || a.cle.localeCompare(b.cle, 'fr'))
+}
+
+// OCR errors rarely repeat identically, names do: a capitalised word seen this often is likely a name
+const REPETITIONS_NOM = 3
+
+/** Pre-checked for bulk validation into the Lexique; the user unchecks the real OCR errors. */
+export function nomPropreProbable(s: MotSuspect): boolean {
+  return /^\p{Lu}\p{Ll}/u.test(s.forme) && s.occurrences.length >= REPETITIONS_NOM
 }
 
 export type Motif = 'illisible' | 'vide' | 'courte' | 'suspects'

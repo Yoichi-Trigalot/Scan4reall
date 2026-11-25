@@ -17,7 +17,7 @@ import EpubView from './EpubView'
 import PageDetail from './PageDetail'
 import { pageName } from './pages'
 import { texteValide, useTexteTome } from './useTexteTome'
-import { listerSuspects, pagesARevoir, type MotSuspect } from './verification'
+import { listerSuspects, nomPropreProbable, pagesARevoir, type MotSuspect, type Occurrence } from './verification'
 
 type Props = { tomeId: string; navigate: (v: View) => void }
 
@@ -45,6 +45,8 @@ function Verification({ tome, serie, navigate }: { tome: Tome; serie: Serie; nav
   const { pages, textes, lexique, corrections, chapitres, connu, nettoyage, recharger } = useTexteTome(tome)
   const [detail, setDetail] = useState<number>()
   const [visibles, setVisibles] = useState(PAR_TRANCHE)
+  // Suspects checked for bulk validation into the Lexique, by key
+  const [selection, setSelection] = useState<Set<string>>(new Set())
 
   const vuesChapitres = useMemo(
     () => (nettoyage ? fusionner(suggererChapitres(nettoyage), chapitres) : []),
@@ -80,6 +82,14 @@ function Verification({ tome, serie, navigate }: { tome: Tome; serie: Serie; nav
   }
 
   const nbOccurrences = suspects.reduce((n, s) => n + s.occurrences.length, 0)
+  const nomsProbables = suspects.filter(nomPropreProbable)
+  const selectionnes = suspects.filter((s) => selection.has(s.cle))
+
+  async function validerSelection() {
+    await ajouterAuLexique(serie.id, selectionnes.map((s) => motPourLexique(s.forme)))
+    setSelection(new Set())
+    await recharger()
+  }
 
   return (
     <>
@@ -94,18 +104,47 @@ function Verification({ tome, serie, navigate }: { tome: Tome; serie: Serie; nav
           {suspects.length} Mots suspects · {nbOccurrences} occurrences
         </h2>
         {suspects.length === 0 && connu && <p className="muted">Aucun Mot suspect.</p>}
+        {suspects.length > 0 && (
+          <div className="row selection">
+            {nomsProbables.length > 0 && (
+              <button
+                className="link small"
+                onClick={() => setSelection(new Set([...selection, ...nomsProbables.map((s) => s.cle)]))}
+              >
+                Cocher les noms propres probables ({nomsProbables.length})
+              </button>
+            )}
+            {selectionnes.length > 0 && (
+              <>
+                <button className="primary" onClick={validerSelection}>
+                  Valider la sélection ({selectionnes.length})
+                </button>
+                <button className="link small" onClick={() => setSelection(new Set())}>
+                  Tout décocher
+                </button>
+              </>
+            )}
+          </div>
+        )}
         <ul className="list suspects">
           {suspects.slice(0, visibles).map((s) => (
             <SuspectItem
               key={s.cle}
               suspect={s}
               tomeNumero={tome.numero}
+              coche={selection.has(s.cle)}
+              onCocher={() => {
+                const suivante = new Set(selection)
+                if (!suivante.delete(s.cle)) suivante.add(s.cle)
+                setSelection(suivante)
+              }}
               onValider={async () => {
                 await ajouterAuLexique(serie.id, [motPourLexique(s.forme)])
                 await recharger()
               }}
-              onCorriger={async (vers, rang) => {
-                await addCorrection({ tomeId: tome.id, de: s.forme, vers, rang })
+              onCorriger={async (vers, o) => {
+                // Suspects are grouped case-insensitively: everywhere means every spelling (Ikeda, IKEDA)
+                for (const de of o ? [o.forme] : s.formes) await addCorrection({ tomeId: tome.id, de, vers, rang: o?.rang })
                 await recharger()
               }}
               onPage={setDetail}
@@ -189,29 +228,31 @@ function Verification({ tome, serie, navigate }: { tome: Tome; serie: Serie; nav
 type ItemProps = {
   suspect: MotSuspect
   tomeNumero: number
+  coche: boolean
+  onCocher: () => void
   onValider: () => void
-  onCorriger: (vers: string, rang?: number) => void
+  onCorriger: (vers: string, occurrence?: Occurrence) => void
   onPage: (rang: number) => void
 }
 
-function SuspectItem({ suspect, tomeNumero, onValider, onCorriger, onPage }: ItemProps) {
+function SuspectItem({ suspect, tomeNumero, coche, onCocher, onValider, onCorriger, onPage }: ItemProps) {
   const [ouvert, setOuvert] = useState(false)
   // Correction being typed: for the whole Tome (rang undefined) or for one occurrence's Page
   const [correction, setCorrection] = useState<{ vers: string; rang?: number }>()
 
-  const formulaire = (rang?: number) =>
-    correction && correction.rang === rang ? (
+  const formulaire = (o?: Occurrence) =>
+    correction && correction.rang === o?.rang ? (
       <form
         className="row"
         onSubmit={(e) => {
           e.preventDefault()
-          if (correction.vers.trim() && correction.vers !== suspect.forme) onCorriger(correction.vers.trim(), rang)
+          if (correction.vers.trim() && correction.vers !== (o?.forme ?? suspect.forme)) onCorriger(correction.vers.trim(), o)
           setCorrection(undefined)
         }}
       >
-        <input autoFocus value={correction.vers} onChange={(e) => setCorrection({ vers: e.target.value, rang })} />
+        <input autoFocus value={correction.vers} onChange={(e) => setCorrection({ vers: e.target.value, rang: o?.rang })} />
         <button type="submit" className="primary">
-          {rang === undefined ? 'Partout' : 'Ici'}
+          {o === undefined ? 'Partout' : 'Ici'}
         </button>
       </form>
     ) : null
@@ -219,6 +260,7 @@ function SuspectItem({ suspect, tomeNumero, onValider, onCorriger, onPage }: Ite
   return (
     <li className="suspect">
       <div className="row suspect-ligne">
+        <input type="checkbox" checked={coche} onChange={onCocher} aria-label={`Cocher ${suspect.forme}`} />
         <button className="suspect-mot" onClick={() => setOuvert(!ouvert)} aria-expanded={ouvert}>
           <mark>{suspect.forme}</mark>
           <span className="muted small"> ×{suspect.occurrences.length}</span>
@@ -236,11 +278,11 @@ function SuspectItem({ suspect, tomeNumero, onValider, onCorriger, onPage }: Ite
                 <button className="link small" onClick={() => onPage(o.rang)}>
                   {pageName(tomeNumero, o.rang)}
                 </button>
-                <button className="link small" onClick={() => setCorrection({ vers: suspect.forme, rang: o.rang })}>
+                <button className="link small" onClick={() => setCorrection({ vers: o.forme, rang: o.rang })}>
                   Corriger ici
                 </button>
               </div>
-              {formulaire(o.rang)}
+              {formulaire(o)}
             </li>
           ))}
         </ul>

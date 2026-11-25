@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { Tome } from './db'
+import { putTexte, type Tome } from './db'
 import ExportView from './ExportView'
 import ImportView from './ImportView'
 import PageImage from './PageImage'
@@ -51,7 +51,20 @@ export default function PagesView({ tome, nbCaptures }: Props) {
             réimporte ce lot.
           </p>
         )}
-        {texteValide(texte, page) && <TexteView rang={page.rang} texte={texte} nettoyage={nettoyage} connu={connu} />}
+        {texteValide(texte, page) && (
+          <>
+            <TexteView rang={page.rang} texte={texte} nettoyage={nettoyage} connu={connu} />
+            {/* Ignored Pages drop out of the verification lists: this viewer is the only way back to them */}
+            <button
+              onClick={async () => {
+                await putTexte({ ...texte, ignoree: !texte.ignoree })
+                await recharger()
+              }}
+            >
+              {texte.ignoree ? 'Réintégrer la Page' : 'Ignorer cette Page'}
+            </button>
+          </>
+        )}
         {erreurDico && <p className="error small">{erreurDico} : Mots suspects non calculés.</p>}
       </div>
       {textes.size > 0 && (

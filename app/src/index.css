@@ -411,6 +411,24 @@ textarea.edition {
   padding: 0;
 }
 
+.suspect-ligne input {
+  flex: 0 0 auto;
+  min-height: 0;
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+}
+
+.selection {
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.selection button {
+  width: auto;
+}
+
 .suspect-ligne .link {
   padding: 0 8px;
 }
